@@ -5,10 +5,15 @@ const authRoutes = require('./routes/authRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const conductorRoutes = require('./routes/conductorRoutes');
 const pasajeroRoutes = require('./routes/pasajeroRoutes');
-const mongoose = require('./config/database'); // Importar tu conexión a la base de datos
+const incidenciaRoutes = require('./routes/incidenciaRoutes');
+
+
+const mongoose = require('./config/database'); 
 
 const app = express();
-const PORT = process.env.PORT || 3000; // Asegúrate de usar siempre "PORT"
+const PORT = process.env.PORT || 3000; 
+
+
 
 // Middleware
 app.use(cors());
@@ -17,8 +22,10 @@ app.use(express.json());
 // Rutas
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
-app.use('/api/conductor', conductorRoutes);
-app.use('/api/pasajero', pasajeroRoutes);
+app.use('/api/conductores', conductorRoutes); 
+app.use('/api/pasajeros', pasajeroRoutes);
+app.use('/api/incidencias', incidenciaRoutes);
+
 
 // Ruta principal
 app.get('/', (req, res) => {
@@ -30,7 +37,7 @@ app.get('/api', (req, res) => {
   res.json({ message: "Bienvenido a la API" });
 });
 
-// Manejo de errores
+// Manejo de errores 
 app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).send('Algo salió mal!');
@@ -40,3 +47,4 @@ app.use((err, req, res, next) => {
 app.listen(PORT, () => {
   console.log(`Servidor corriendo en http://localhost:${PORT}`);
 });
+

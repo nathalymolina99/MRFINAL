@@ -1,20 +1,24 @@
 const express = require('express');
 const router = express.Router();
-const authMiddleware = require('../middlewares/auth'); // Importa el middleware
 const pasajeroController = require('../controllers/pasajeroController');
+const authMiddleware = require('../middlewares/auth');
 
-// Asegúrate de que las funciones que estás usando están bien definidas en el controlador
-router.get('/info', pasajeroController.getConductorInfo); // Obtener información del conductor
-router.put('/profile', pasajeroController.updateProfile); // Actualizar perfil del pasajero
-router.get('/', pasajeroController.getPasajeros); // Obtener todos los pasajeros
-router.post('/', pasajeroController.createPasajero); // Crear un nuevo pasajero
-// Agrega las otras rutas que necesites aquí
+// Aplicar middleware de autenticación a todas las rutas
+router.use(authMiddleware);
 
+// Ver perfil del pasajero
+router.get('/perfil', pasajeroController.verPerfil);
 
-// Ruta protegida para pasajeros
-router.get('/ruta-protegida', authMiddleware, (req, res) => {
-    res.json({ message: "Acceso a la ruta protegida para pasajeros exitoso", user: req.user });
-});
+// Editar perfil del pasajero
+router.put('/perfil', pasajeroController.editarPerfil);
 
+// Actualizar contraseña
+router.put('/actualizarcontrasena', pasajeroController.actualizarContrasena);
+
+// Crear contraseña en el primer inicio de sesión
+router.post('/crearcontrasenainicial', pasajeroController.crearContrasenaInicial);
+
+// Ver conductor asignado
+router.get('/conductorasignado', pasajeroController.verConductorAsignado);
 
 module.exports = router;

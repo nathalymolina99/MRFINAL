@@ -1,8 +1,12 @@
-const mongoose = require('../config/database'); // Conexión a MongoDB
-const { Schema } = mongoose;
+// src/models/Usuario.js
+const mongoose = require('mongoose');
 
-// Definir el esquema para el usuario
-const usuarioSchema = new Schema({
+const usuarioSchema = new mongoose.Schema({
+  rut: {
+    type: String,
+    required: true,
+    unique: true,
+  },
   nombre: {
     type: String,
     required: true,
@@ -11,27 +15,50 @@ const usuarioSchema = new Schema({
     type: String,
     required: true,
   },
-  email: {
+  password: {
     type: String,
-    required: true,
-    unique: true,
+    required: false, // Cambiado a false para permitir la creación inicial sin contraseña
   },
-  contrasena: {
-    type: String,
-    required: true,
+  passwordCreada: {
+    type: Boolean,
+    default: false,
+    required: true
   },
   telefono: {
     type: String,
   },
-  fotoPerfil: {
+  role: {
     type: String,
+    required: true,
+    enum: ['admin', 'conductor', 'pasajero'],
   },
-  // Puedes agregar más campos aquí
-}, {
-  timestamps: true // Agrega createdAt y updatedAt automáticamente
+  activo: {
+    type: Boolean,
+    default: true,
+  },
+  direccion: {
+    type: String,
+    validate: {
+      validator: function(v) {
+        // La dirección solo es válida si el rol es 'pasajero'
+        return this.role !== 'pasajero' || (this.role === 'pasajero' && v && v.length > 0);
+      },
+      message: props => `La dirección es requerida para los pasajeros`
+    },
+    required: function() {
+      return this.role === 'pasajero';
+    }
+  },
+}, { timestamps: true });
+
+// Middleware pre-save para asegurar que solo los pasajeros tengan dirección
+usuarioSchema.pre('save', function(next) {
+  if (this.role !== 'pasajero') {
+    this.direccion = undefined;
+  }
+  next();
 });
 
-// Crear el modelo a partir del esquema
-const Usuario = mongoose.model('Usuario', usuarioSchema);
 
+const Usuario = mongoose.model('Usuario', usuarioSchema);
 module.exports = Usuario;

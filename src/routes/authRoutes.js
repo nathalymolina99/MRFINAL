@@ -1,8 +1,7 @@
 const express = require('express');
 const router = express.Router();
-const { login } = require('../controllers/authController');
+const authController = require('../controllers/authController'); 
 
-// Ruta para el login
-router.post('/login', login); // Usar login directamente
+router.post('/inicio', authController.iniciarSesion);
 
 module.exports = router;

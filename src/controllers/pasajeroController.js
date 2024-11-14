@@ -1,74 +1,131 @@
-const Pasajero = require('../models/pasajero'); // Ajusta la ruta según tu estructura
+// src/controllers/pasajeroController.js
+const Usuario = require('../models/usuario');
+const Asignacion = require('../models/asignacion');
+const Vehiculo = require('../models/vehiculo').Vehiculo;
+const bcrypt = require('bcryptjs');
 
-// Obtener todos los pasajeros
-exports.getPasajeros = async (req, res) => {
+// Ver perfil del pasajero
+exports.verPerfil = async (req, res) => {
   try {
-    const pasajeros = await Pasajero.find();
-    res.status(200).json(pasajeros);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
-
-// Crear un nuevo pasajero
-exports.createPasajero = async (req, res) => {
-  const nuevoPasajero = new Pasajero(req.body);
-  try {
-    const pasajeroGuardado = await nuevoPasajero.save();
-    res.status(201).json(pasajeroGuardado);
-  } catch (error) {
-    res.status(400).json({ message: error.message });
-  }
-};
-
-// Obtener un pasajero por ID
-exports.getPasajeroById = async (req, res) => {
-  try {
-    const pasajero = await Pasajero.findById(req.params.id);
+    const pasajero = await Usuario.findById(req.user.id).select('-password');
     if (!pasajero) {
       return res.status(404).json({ message: 'Pasajero no encontrado' });
     }
     res.json(pasajero);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
+  } catch (err) {
+    res.status(500).json({ message: 'Error al obtener el perfil', error: err.message });
   }
 };
 
-// Actualizar un pasajero por ID
-exports.updatePasajero = async (req, res) => {
+// Editar perfil del pasajero
+exports.editarPerfil = async (req, res) => {
   try {
-    const pasajero = await Pasajero.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    const { id } = req.user;
+    const { telefono, nombre, apellido } = req.body;
+
+    if (!telefono && !nombre && !apellido) {
+      return res.status(400).json({ message: 'Se requiere al menos un campo para actualizar' });
+    }
+
+    const actualizaciones = {};
+    if (telefono) actualizaciones.telefono = telefono;
+    if (nombre) actualizaciones.nombre = nombre;
+    if (apellido) actualizaciones.apellido = apellido;
+
+    const pasajeroActualizado = await Usuario.findByIdAndUpdate(id, actualizaciones, { new: true }).select('-password');
+    
+    if (!pasajeroActualizado) {
+      return res.status(404).json({ message: 'Pasajero no encontrado' });
+    }
+    
+    return res.status(200).json(pasajeroActualizado);
+  } catch (error) {
+    return res.status(500).json({ message: 'Error al actualizar el perfil', error: error.message });
+  }
+};
+
+// Actualizar contraseña
+exports.actualizarContrasena = async (req, res) => {
+  try {
+    const { contrasenaActual, nuevaContrasena } = req.body;
+    const pasajero = await Usuario.findById(req.user.id);
+
     if (!pasajero) {
       return res.status(404).json({ message: 'Pasajero no encontrado' });
     }
-    res.json(pasajero);
-  } catch (error) {
-    res.status(400).json({ message: error.message });
+
+    // Verificar la contraseña actual
+    const isMatch = await bcrypt.compare(contrasenaActual, pasajero.password);
+    if (!isMatch) {
+      return res.status(400).json({ message: 'La contraseña actual es incorrecta' });
+    }
+
+    // Encriptar la nueva contraseña
+    const salt = await bcrypt.genSalt(10);
+    pasajero.password = await bcrypt.hash(nuevaContrasena, salt);
+    await pasajero.save();
+
+    res.json({ message: 'Contraseña actualizada con éxito' });
+  } catch (err) {
+    res.status(500).json({ message: 'Error al actualizar la contraseña', error: err.message });
   }
 };
 
-// Eliminar un pasajero por ID
-exports.deletePasajero = async (req, res) => {
+// Crear contraseña en el primer inicio de sesión
+exports.crearContrasenaInicial = async (req, res) => {
   try {
-    const pasajero = await Pasajero.findByIdAndDelete(req.params.id);
+    const { id } = req.user;
+    const { nuevaContrasena } = req.body;
+
+    const pasajero = await Usuario.findById(id);
     if (!pasajero) {
       return res.status(404).json({ message: 'Pasajero no encontrado' });
     }
-    res.json({ message: 'Pasajero eliminado correctamente' });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
+
+    if (pasajero.passwordCreada) {
+      return res.status(400).json({ message: 'La contr asena ya ha sido creada anteriormente' });
+    }
+
+    // Encriptar la nueva contraseña
+    const salt = await bcrypt.genSalt(10);
+    pasajero.password = await bcrypt.hash(nuevaContrasena, salt);
+    pasajero.passwordCreada = true;
+    await pasajero.save();
+    res.json({ message: 'Contraseña creada con éxito' });
+  } catch (err) {
+    res.status(500).json({ message: 'Error al crear la contraseña inicial', error: err.message });
   }
 };
 
-// Otras funciones según necesidades
-// Por ejemplo, la función getConductorInfo puede ser implementada aquí.
-exports.getConductorInfo = async (req, res) => {
-  // Implementa la lógica para obtener información del conductor
-  res.json({ message: 'Información del conductor' }); // Placeholder
-};
+// Ver conductor asignado
+exports.verConductorAsignado = async (req, res) => {
+  try {
+    const asignacion = await Asignacion.findOne({ rutsPasajeros: req.user.id });
+    if (!asignacion) {
+      return res.status(404).json({ message: 'Asignación no encontrada' });
+    }
 
-// Actualizar perfil del pasajero
-exports.updateProfile = async (req, res) => {
-  // Implementa la lógica para actualizar el perfil del pasajero
-  res.json({ message: 'Perfil actualizado' }); // Placeholder
+    const conductor = await Usuario.findById(asignacion.rutConductor);
+    const vehiculo = await Vehiculo.findById(conductor.vehiculo_id);
+
+    if (!conductor || !vehiculo) {
+      return res.status(404).json({ message: 'Conductor o vehículo no encontrados' });
+    }
+
+    const datosConductor = {
+      nombre: conductor.nombre,
+      apellido: conductor.apellido,
+      telefono: conductor.telefono,
+      vehiculo: {
+        marca: vehiculo.marca,
+        modelo: vehiculo.modelo,
+        color: vehiculo.color,
+        patente: vehiculo.patente,
+      },
+    };
+
+    res.json(datosConductor);
+  } catch (err) {
+    res.status(500).json({ message: 'Error al obtener el conductor asignado', error: err.message });
+  }
 };
